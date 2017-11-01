@@ -30,6 +30,7 @@ int main(int argc, char *argv[]) {
 
     srand(time(NULL));
 
+
     long long int threadCount, tossCount;
     
     threadCount = strtoll(argv[1], NULL, 10);
@@ -66,6 +67,7 @@ int main(int argc, char *argv[]) {
     double pi = 4 * totalSuccessToss / (double)tossCount;
 
     printf("pi = %f\n", pi);
+    
     
     free(threadHandles);
     
