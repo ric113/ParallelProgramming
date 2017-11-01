@@ -12,6 +12,7 @@
 * [Semaphores in C library](#sem)
 * [Barriers](#bar)
 * [Conditiob in pthread](#cond)
+* [Read/Write lock in pthread](#rwlock)
 
 ## Introduction <a name="i"></a>
 * POSIX threading interface
@@ -321,4 +322,45 @@ void* task_func() {
     ...
 }
 ...
+```
+
+## Read/Write lock in pthread <a name="rwlock"></a>
+### Introduction
+* Provide two kinds of lock
+    - read lock : 要執行讀這個動作, 須先取得read lock
+    - write lock : 要執行寫這個動作, 須先取得write lock
+* 可以一次同時有多個thread取得read lock並進行讀取, 但一次只能有一個thread取得write lock
+    - If any threads own the lock for reading, any threads that want to obtain the lock for writing will block in the call to the write-lock function
+    - If any thread owns the lock for writing, any threads that want to obtain the lock for reading or writing will block in their respective locking functions
+
+### Create a read-write lock & destory
+* Create
+    ``` C
+    int pthread_rwlock_init(
+        phtread_rwlock* rwlock_p,           /* out */
+        const pthread_rwlockattr_p* attr_p  /* in  */
+    );
+    ```
+* Destory
+    ``` C
+    int pthread_rwlock_destory(phtread_rwlock* rwlock_p);
+    ```
+
+### Lock/Unlock
+* pthread_rwlock_rdlock(phtread_rwlock* rwlock_p);
+* pthread_rwlock_wrlock(phtread_rwlock* rwlock_p);
+* pthread_rwlock_unlock(phtread_rwlock* rwlock_p);
+    - 不管是readlock或writelock, 都用這個來unlock 
+
+### Usage
+``` C
+...
+pthread_rwlock_rdlock(&rwlock);
+// Some reading task ...
+pthread_rwlock_unlock(&rwlock);
+...
+pthread_rwlock_wrlock(&rwlock);
+// Some writing task ...
+pthread_rwlock_unlock(&rwlock);
+... 
 ```
