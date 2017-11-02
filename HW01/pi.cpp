@@ -1,10 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <time.h>
 #include <iostream>
 #include <pthread.h>
 
-using namespace std;
 
 void* localTossing(void* arg) {
     
@@ -13,10 +11,12 @@ void* localTossing(void* arg) {
     long long int *inCircleCount = (long long int*)malloc(sizeof(long long int));
     *inCircleCount = 0 ;
     double random_x, random_y, distanceSquared;
+    pthread_t threadId = pthread_self();
+    unsigned int seed = (unsigned long int)threadId;
 
     for(count = 0 ; count < toss ; count ++) {
-        random_x = (double)rand()/RAND_MAX*2.0-1.0;
-        random_y = (double)rand()/RAND_MAX*2.0-1.0;
+        random_x = (double)rand_r(&seed)/RAND_MAX*2.0-1.0;
+        random_y = (double)rand_r(&seed)/RAND_MAX*2.0-1.0;
         distanceSquared = random_x * random_x + random_y * random_y;
 
         if(distanceSquared <= 1)
@@ -58,11 +58,11 @@ int main(int argc, char *argv[]) {
 
     for(count = 0 ; count < threadCount ; count ++) {
         pthread_join(threadHandles[count],(void**)&returnValue);
-        printf("Thread %lld local successed toss sum is %lld\n",count,*returnValue);
+        // printf("Thread %lld local successed toss sum is %lld\n",count,*returnValue);
         totalSuccessToss += *returnValue;
     }
 
-    printf("total: %lld\n", totalSuccessToss);
+    // printf("total: %lld\n", totalSuccessToss);
 
     double pi = 4 * totalSuccessToss / (double)tossCount;
 
