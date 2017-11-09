@@ -15,6 +15,7 @@ void* localTossing(void* arg) {
     unsigned int seed = (unsigned long int)threadId;
 
     for(count = 0 ; count < toss ; count ++) {
+        // Use rand_r instead of rand , due to rand function call contains lock inside it, make 1 thread faster than more thread .
         random_x = (double)rand_r(&seed)/RAND_MAX*2.0-1.0;
         random_y = (double)rand_r(&seed)/RAND_MAX*2.0-1.0;
         distanceSquared = random_x * random_x + random_y * random_y;
