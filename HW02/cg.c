@@ -144,27 +144,38 @@ int main(int argc, char *argv[])
   //      Shift the col index vals from actual (firstcol --> lastcol ) 
   //      to local, i.e., (0 --> lastcol-firstcol)
   //---------------------------------------------------------------------
-  for (j = 0; j < lastrow - firstrow + 1; j++) {
-    for (k = rowstr[j]; k < rowstr[j+1]; k++) {
-      colidx[k] = colidx[k] - firstcol;
-    }
+  
+  #pragma omp parallel sections private(j) 
+  {
+  #pragma omp section
+  {
+	for (j = 0; j < lastrow - firstrow + 1; j++) {
+    		for (k = rowstr[j]; k < rowstr[j+1]; k++) {
+      		colidx[k] = colidx[k] - firstcol;
+    		}
+  	}
   }
-
   //---------------------------------------------------------------------
   // set starting vector to (1, 1, .... 1)
   //---------------------------------------------------------------------
-  #pragma omp parallel for
-  for (i = 0; i < NA+1; i++) {
-    	x[i] = 1.0;
+  #pragma omp section
+  {
+  	#pragma omp parallel for
+  	for (i = 0; i < NA+1; i++) {
+    		x[i] = 1.0;
+  	}
   }
-  
 
-  #pragma omp parallel for
-  for (j = 0; j < lastcol - firstcol + 1; j++) {
-    	q[j] = 0.0;
-    	z[j] = 0.0;
-    	r[j] = 0.0;
-    	p[j] = 0.0;
+  #pragma omp section
+  {
+  	#pragma omp parallel for
+  	for (j = 0; j < lastcol - firstcol + 1; j++) {
+    		q[j] = 0.0;
+    		z[j] = 0.0;
+    		r[j] = 0.0;
+    		p[j] = 0.0;
+  	}
+  }
   }
   
 
@@ -189,7 +200,7 @@ int main(int argc, char *argv[])
     //---------------------------------------------------------------------
     norm_temp1 = 0.0;
     norm_temp2 = 0.0;
-    #pragma omp parallel for reduction (+:norm_temp1,norm_temp2)
+    // #pragma omp parallel for reduction(+:norm_temp1) reduction(+:norm_temp2)
     for (j = 0; j < lastcol - firstcol + 1; j++) {
       norm_temp1 = norm_temp1 + x[j] * z[j];
       norm_temp2 = norm_temp2 + z[j] * z[j];
@@ -244,7 +255,7 @@ int main(int argc, char *argv[])
     //---------------------------------------------------------------------
     norm_temp1 = 0.0;
     norm_temp2 = 0.0;
-    #pragma omp parallel for reduction (+:norm_temp1,norm_temp2)
+    // #pragma omp parallel for reduction(+:norm_temp1) reduction(+:norm_temp2)
     for (j = 0; j < lastcol - firstcol + 1; j++) {
       norm_temp1 = norm_temp1 + x[j]*z[j];
       norm_temp2 = norm_temp2 + z[j]*z[j];
@@ -260,7 +271,7 @@ int main(int argc, char *argv[])
     //---------------------------------------------------------------------
     // Normalize z to obtain x
     //---------------------------------------------------------------------
-    #pragma omp parallel for
+     #pragma omp parallel for
     for (j = 0; j < lastcol - firstcol + 1; j++) {
       x[j] = norm_temp2 * z[j];
     }
@@ -331,7 +342,7 @@ static void conj_grad(int colidx[],
   // rho = r.r
   // Now, obtain the norm of r: First, sum squares of r elements locally...
   //---------------------------------------------------------------------
-  #pragma omp parallel for reduction (+:rho) 
+  // #pragma omp parallel for reduction(+:rho) 
   for (j = 0; j < lastcol - firstcol + 1; j++) 
     	rho = rho + r[j]*r[j];
   
@@ -353,10 +364,10 @@ static void conj_grad(int colidx[],
     //       unrolled-by-two version is some 10% faster.  
     //       The unrolled-by-8 version below is significantly faster
     //       on the Cray t3d - overall speed of code is 1.5 times faster.
-    #pragma omp parallel for
+    #pragma omp parallel for private(sum,k)
     for (j = 0; j < lastrow - firstrow + 1; j++) {
       sum = 0.0;
-      #pragma omp parallel for reduction (+:sum)
+      //#pragma omp parallel for reduction(+:sum)
       for (k = rowstr[j]; k < rowstr[j+1]; k++) {
         sum = sum + a[k]*p[colidx[k]];
       }
@@ -367,7 +378,7 @@ static void conj_grad(int colidx[],
     // Obtain p.q
     //---------------------------------------------------------------------
     d = 0.0;
-    #pragma omp parallel for reduction (+:d)
+   //  #pragma omp parallel for reduction(+:d)
     for (j = 0; j < lastcol - firstcol + 1; j++) {
       d = d + p[j]*q[j];
     }
@@ -397,10 +408,13 @@ static void conj_grad(int colidx[],
     // rho = r.r
     // Now, obtain the norm of r: First, sum squares of r elements locally...
     //---------------------------------------------------------------------
-    #pragma omp parallel for reduction (+:rho)
+    //#pragma omp parallel 
+    //{
+    //#pragma omp for reduction(+:rho)	    
     for (j = 0; j < lastcol - firstcol + 1; j++) {
       rho = rho + r[j]*r[j];
     }
+    //}
 
     //---------------------------------------------------------------------
     // Obtain beta:
@@ -422,10 +436,10 @@ static void conj_grad(int colidx[],
   // The partition submatrix-vector multiply
   //---------------------------------------------------------------------
   sum = 0.0;
-  #pragma omp parallel for
+  #pragma omp parallel for private(d)
   for (j = 0; j < lastrow - firstrow + 1; j++) {
     d = 0.0;
-    #pragma omp parallel for reduction (+:d)
+    #pragma omp parallel for reduction(+:d)
     for (k = rowstr[j]; k < rowstr[j+1]; k++) {
       d = d + a[k]*z[colidx[k]];
     }
@@ -435,7 +449,7 @@ static void conj_grad(int colidx[],
   //---------------------------------------------------------------------
   // At this point, r contains A.z
   //---------------------------------------------------------------------
-  #pragma omp paralle for reduction (+:sum)
+  #pragma omp paralle for reduction(+:sum) private(d)
   for (j = 0; j < lastcol-firstcol+1; j++) {
     d   = x[j] - r[j];
     sum = sum + d*d;
@@ -509,6 +523,7 @@ static void makea(int n,
     vecset(n, vc, ivc, &nzv, iouter+1, 0.5);
     arow[iouter] = nzv;
     
+    //#pragma omp parallel for
     for (ivelt = 0; ivelt < nzv; ivelt++) {
       acol[iouter][ivelt] = ivc[ivelt] - 1;
       aelt[iouter][ivelt] = vc[ivelt];
@@ -593,6 +608,8 @@ static void sparse(double a[],
   //---------------------------------------------------------------------
   // ... preload data pages
   //---------------------------------------------------------------------
+  
+  //#pragma omp paraller for private(k)
   for (j = 0; j < nrows; j++) {
     for (k = rowstr[j]; k < rowstr[j+1]; k++) {
       a[k] = 0.0;
