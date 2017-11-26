@@ -3,7 +3,6 @@
 #include <math.h>
 #include <mpi.h>
 
-
 int isprime(long long int n) {
   long long int i,squareroot;
   if (n>10) {
@@ -17,11 +16,24 @@ int isprime(long long int n) {
     return 0;
 }
 
+
+void calculate(long long int localStart,long long int localEnd, long long int result[]) {
+    long long int n;
+    for(n = localStart ; n <= localEnd ; n = n + 2) {
+        if (isprime(n)) {
+            result[0] ++ ;
+            result[1] = n;
+        }	
+    }
+}
+
+
+
 int main(int argc, char *argv[])
 {
   long long int pc = 4,       /* prime counter , already included {2,3,5,7} */
       foundone; /* most recent prime found */
-  long long int n, limit;
+  long long int limit;
 
   sscanf(argv[1],"%llu",&limit);	
   printf("Starting. Numbers to be scanned= %lld\n",limit);
@@ -36,7 +48,7 @@ int main(int argc, char *argv[])
   long long int localStart;
   long long int localEnd;
   long long int result[2] = {0,7};  /* index 0 : prime count (included 2,3,5,7), index 1 : largest prime*/
-  
+
   MPI_Status status;
   /* Let the system do what it needs to start up MPI */
   MPI_Init(&argc, &argv);
@@ -51,13 +63,7 @@ int main(int argc, char *argv[])
   if(myRank == 0) {
     localStart = 11 + myRank * workLoadPerProcess;
     localEnd = localStart + remainLoad + workLoadPerProcess - 1;
-
-    for(n = localStart ; n <= localEnd ; n = n + 2) {
-        if (isprime(n)) {
-            result[0] ++ ;
-            result[1] = n;
-        }	
-    }
+    calculate(localStart, localEnd, result);
 
     // printf("Rank : %d, prime count : %lld, largest prime : %lld\n", myRank, result[0], result[1]);
 
@@ -79,16 +85,8 @@ int main(int argc, char *argv[])
     if(localStart % 2 == 0)
         localStart ++;
 
-    for(n = localStart ; n <= localEnd ; n = n + 2) {
-        if (isprime(n)) {
-            // printf("Is prime : %lld\n", n);
-            result[0] ++ ;
-            result[1] = n;
-        }	
-    }
-
+    calculate(localStart, localEnd, result);
     // printf("Rank : %d, prime count : %lld, largest prime : %lld\n", myRank, result[0], result[1]);
-
     MPI_Send(result, 2, MPI_LONG_LONG, dest, tag, MPI_COMM_WORLD);
   }
 
