@@ -1,6 +1,6 @@
 /**********************************************************************
  * DESCRIPTION:
- *   Serial Concurrent Wave Equation - C Version
+ *   Parallel by CUDA Wave Equation - C Version
  *   This program implements the concurrent wave equation
  *********************************************************************/
 #include <stdio.h>
@@ -16,16 +16,11 @@
 #define MAX_BLOCK_SIZE 1000
 
 void check_param(void);
-void init_line(void);
-void update (void);
 void printfinal (void);
 
 int nsteps,                 	/* number of time steps */
-    tpoints, 	     		/* total points along string */
-    rcode;                  	/* generic return code */
-float  values[MAXPOINTS+2], 	/* values at time t */
-       oldval[MAXPOINTS+2], 	/* values at time (t-dt) */
-       newval[MAXPOINTS+2]; 	/* values at time (t+dt) */
+    tpoints; 	     		/* total points along string */
+float  values[MAXPOINTS+2]; 	/* values at time t */
 
 
 /**********************************************************************
@@ -55,70 +50,6 @@ void check_param(void)
 
    printf("Using points = %d, steps = %d\n", tpoints, nsteps);
 
-}
-
-/**********************************************************************
- *     Initialize points on line
- *********************************************************************/
-void init_line(void)
-{
-   int i, j;
-   float x, fac, k, tmp;
-
-   /* Calculate initial values based on sine curve */
-   fac = 2.0 * PI;
-   k = 0.0; 
-   tmp = tpoints - 1;
-   for (j = 1; j <= tpoints; j++) {
-      x = k/tmp;
-      values[j] = sin (fac * x);
-      k = k + 1.0;
-   } 
-
-   /* Initialize old values array */
-   for (i = 1; i <= tpoints; i++) 
-      oldval[i] = values[i];
-}
-
-/**********************************************************************
- *      Calculate new values using wave equation
- *********************************************************************/
-void do_math(int i)
-{
-   float dtime, c, dx, tau, sqtau;
-
-   dtime = 0.3;
-   c = 1.0;
-   dx = 1.0;
-   tau = (c * dtime / dx);
-   sqtau = tau * tau;
-   newval[i] = (2.0 * values[i]) - oldval[i] + (sqtau *  (-2.0)*values[i]);
-}
-
-/**********************************************************************
- *     Update all values along line a specified number of times
- *********************************************************************/
-void update()
-{
-   int i, j;
-
-   /* Update values for each time step */
-   for (i = 1; i<= nsteps; i++) {
-      /* Update points along line for this time step */
-      for (j = 1; j <= tpoints; j++) {
-         /* global endpoints */
-         if ((j == 1) || (j  == tpoints))
-            newval[j] = 0.0;
-         else
-            do_math(j);
-      }
-
-      /* Update old values with new values */
-      for (j = 1; j <= tpoints; j++) {
-         oldval[j] = values[j];
-         values[j] = newval[j];
-      }
-   }
 }
 
 /**********************************************************************
@@ -190,7 +121,6 @@ void cudaProcess()
         cudaMemcpy( value_d, values, float_arr_size, cudaMemcpyHostToDevice );
 
         int blockNum = ceil((float)tpoints / MAX_BLOCK_SIZE);
-        // printf("block #: %d\n",blockNum);
 
         kernelWork<<<blockNum, MAX_BLOCK_SIZE>>>(value_d, nsteps, tpoints);
 
@@ -207,10 +137,8 @@ int main(int argc, char *argv[])
 	sscanf(argv[2],"%d",&nsteps);
 	check_param();
 	printf("Initializing points on the line...\n");
-	// init_line();
-	// printf("Updating all points for all time steps...\n");
-	// update();
-   cudaProcess();
+	printf("Updating all points for all time steps...\n");
+  cudaProcess();
 	printf("Printing final results...\n");
 	printfinal();
 	printf("\nDone.\n\n");
